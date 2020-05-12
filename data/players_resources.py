@@ -3,7 +3,7 @@ from flask_restful import abort, Resource
 
 from data import db_session
 from data.player import Player
-from data.reqparse import parser
+from data.reqparse import parser, parser2
 
 
 def abort_if_player_not_found(player_id):
@@ -51,3 +51,13 @@ class PlayersListResource(Resource):
         session.add(player)
         session.commit()
         return jsonify({'success': 'OK'})
+
+
+class PlayerInGame(Resource):
+    def get(self):
+        args = parser2.parse_args()
+        session = db_session.create_session()
+        player = session.query(Player).filter(Player.email == args['email']).first()
+        if player.check_password(args['password']):
+            return jsonify({'success': 'OK'})
+        return jsonify({'failed': 'wrong email or password'})

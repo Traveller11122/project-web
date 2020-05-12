@@ -1,12 +1,14 @@
 from data import db_session
 from flask_restful import Api
+import json
 from flask import Flask, render_template, redirect
-from flask_login import LoginManager, login_user, logout_user, login_required
+from flask_login import LoginManager, login_user, logout_user, login_required, fresh_login_required
+
 from data.register import RegisterForm
 from data.LoginForm import LoginForm
 from data.RedactForm import RedactForm
 from data.player import Player
-from data.players_resources import PlayerResource, PlayersListResource
+from data.players_resources import PlayerResource, PlayersListResource, PlayerInGame
 import logging
 
 
@@ -18,7 +20,6 @@ api = Api(app)
 
 '''logging.basicConfig(level=logging.INFO, filename='logs.log',
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')'''
-loaded_player = [None]
 
 
 def main():
@@ -26,6 +27,7 @@ def main():
     app.config['JSON_AS_ASCII'] = False
     api.add_resource(PlayerResource, '/api/players/<int:player_id>')
     api.add_resource(PlayersListResource, '/api/players')
+    api.add_resource(PlayerInGame, '/api/player')
 
     @app.route("/")
     def index():
@@ -40,7 +42,7 @@ def main():
         session = db_session.create_session()
         players = session.query(Player).filter(Player.public is True or Player.hashed_id == hashed_id).all()
         names = {name.player_id: (name.nickname, name.place, name.points, name.online) for name in players}
-        return render_template("index.html", players=names, title="Game Status")
+        return render_template("index.html", players=names, title="Game Status", id=hashed_id)
 
     @app.route('/register', methods=['GET', 'POST'])
     def register():
@@ -67,13 +69,12 @@ def main():
             return redirect('/login')
         return render_template('register.html', title='Регистрация', form=form)
 
-    @app.route("/redact", methods=['GET', 'POST'])
+    @app.route("/<string:hashed_id>/redact", methods=['GET', 'POST'])
     @login_required
-    def redact():
-        global loaded_player
+    def redact(hashed_id):
         form = RedactForm()
         session = db_session.create_session()
-        player = session.query(Player).filter(Player.hashed_id == loaded_player[0]).first()
+        player = session.query(Player).filter(Player.hashed_id == hashed_id).first()
         if form.validate_on_submit():
             if not player.check_password(form.old_password.data):
                 return render_template('redact.html', title='Редактировать информацию о себе', form=form,
@@ -91,7 +92,7 @@ def main():
             session.add(player)
             session.commit()
             return redirect('/login')
-        return render_template('redact.html', title='Редактировать информацию о себе', form=form)
+        return render_template('redact.html', title='Редактировать информацию о себе', form=form, id=hashed_id)
 
     @login_manager.user_loader
     def load_user(player_id):
@@ -100,31 +101,26 @@ def main():
 
     @app.route('/login', methods=['GET', 'POST'])
     def login():
-        global loaded_player
         form = LoginForm()
         if form.validate_on_submit():
             session = db_session.create_session()
             player = session.query(Player).filter(Player.email == form.email.data).first()
             if player and player.check_password(form.password.data):
                 login_user(player, remember=form.remember_me.data)
-                loaded_player = [player.hashed_id]
                 player.online = True
                 session.commit()
-                print(loaded_player)
                 return redirect(f"/{player.hashed_id}")
             return render_template('login.html',
                                    message="Неправильный логин или пароль",
                                    form=form)
         return render_template('login.html', title='Авторизация', form=form)
 
-    @app.route('/logout')
+    @app.route('/string:hashed_id/logout')
     @login_required
-    def logout():
-        global loaded_player
+    def logout(hashed_id):
         session = db_session.create_session()
-        player = session.query(Player).filter(Player.hashed_id == loaded_player[0]).first()
+        player = session.query(Player).filter(Player.hashed_id == hashed_id).first()
         player.online = False
-        loaded_player = [None]
         session.commit()
         logout_user()
         return redirect("/")
