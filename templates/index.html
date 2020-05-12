@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<meta charset="UTF-8">
+
+<h2 align="center">Game stats</h2>
+{% for player in players %}
+<div class="table_container">
+    <table class="my_table">
+        <tr class="my_row">
+            <td class="title" width="400px" bgcolor="#dddddd" align="center">Nickname</td>
+            <td class="title" width="100px" bgcolor="#dddddd" align="center">Place</td>
+            <td class="title" width="100px" bgcolor="#dddddd" align="center">Points</td>
+            <td class="title" width="100px" bgcolor="#dddddd" align="center">Is Online</td>
+        </tr>
+        <tr class="my_row">
+            <td class="ordinary" bgcolor="#eeeeff" align="center">{{ player.nickname }}</td>
+            <td class="ordinary" bgcolor="#eeeeff" align="center">{{ player.place }} place </td>
+            <td class="ordinary" bgcolor="#eeeeff" align="center">{{ player.points }} points</td>
+            {% if player.online %}
+            <td class="ordinary" bgcolor="#eeffee" align="center">Online</td>
+            {% else %}
+            <td class="ordinary" bgcolor="#ffeeff" align="center">Offline</td>
+            {% endif %}
+        </tr>
+
+    </table>
+</div>
+<br>
+{% endfor %}
+
+{% endblock %}
